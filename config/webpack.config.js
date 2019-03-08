@@ -40,6 +40,14 @@ const cssModuleRegex = /\.module\.css$/;
 const sassRegex = /\.(scss|sass)$/;
 const sassModuleRegex = /\.module\.(scss|sass)$/;
 
+// To use Carbon's v10 stuff
+const replaceTable = {
+  breakingChangesX: true,
+  componentsX: true,
+  grid: true,
+  uiShell: true,
+};
+
 // This is the production and development configuration.
 // It is focused on developer experience, fast rebuilds, and a minimal bundle.
 module.exports = function(webpackEnv) {
@@ -106,6 +114,16 @@ module.exports = function(webpackEnv) {
       loaders.push({
         loader: require.resolve(preProcessor),
         options: {
+          ...(preProcessor = 'sass-loader' ? {
+            data: `
+              $feature-flags: (
+                components-x: ${replaceTable.componentsX},
+                breaking-changes-x: ${replaceTable.breakingChangesX},
+                grid: ${replaceTable.grid},
+                ui-shell: ${replaceTable.uiShell},
+              );
+            `
+          } : undefined),
           sourceMap: isEnvProduction && shouldUseSourceMap,
         },
       });
@@ -379,6 +397,17 @@ module.exports = function(webpackEnv) {
                 // debugger to show the original code. Instead, the code
                 // being evaluated would be much more helpful.
                 sourceMaps: false,
+              },
+            },
+            {
+              test: /(\/|\\)FeatureFlags\.js$/,
+              loader: 'string-replace-loader',
+              options: {
+                multiple: Object.keys(replaceTable).map(key => ({
+                  search: `export\\s+var\\s+${key}\\s*=\\s*false`,
+                  replace: `export var ${key} = ${replaceTable[key]}`,
+                  flags: 'i',
+                })),
               },
             },
             // "postcss" loader applies autoprefixer to our CSS.
